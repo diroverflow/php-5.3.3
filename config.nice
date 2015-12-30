@@ -1,0 +1,9 @@
+#! /bin/sh
+#
+# Created by configure
+
+'./configure' \
+'--disable-cli' \
+'--disable-all' \
+'--with-zlib' \
+"$@"

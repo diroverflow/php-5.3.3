@@ -1,0 +1,14 @@
+win32 build step
+require:
+	VC 2008 SP1
+	php-sdk-binary-tools-20110915.zip
+	deps-5.3-vc9-x86.7z
+step:
+	unzip php-sdk-binary-tools-20110915.zip to php-sdk
+	run bin\phpsdk_setvars.bat and bin\phpsdk_buildtree.bat phpdev in "Visual Studio 2008 Command Prompt"
+	unzip deps-5.3-vc9-x86.7z to php-sdk\phpdev\vc9\x86\
+	copy php-5.3.3 source code dir to php-sdk\phpdev\vc11\x86\php-5.5.3-src\
+	run buildconf in php-sdk\phpdev\vc11\x86\php-5.5.3-src\
+	configure --disable-zts
+	nmake
+	Release\pvm.exe
