@@ -238,7 +238,7 @@ char *cookiestr = NULL;
 char *org_getstr = NULL;
 char *org_poststr = NULL;
 char *org_cookiestr = NULL;
-char *methodstr = NULL;
+char *methodstr = "POST";//NULL;
 char *simstr = NULL;
 char *typestr = "application/x-www-form-urlencoded";
 char *logfile = NULL;
@@ -251,6 +251,7 @@ static const opt_struct OPTIONS[] = {
 	{'d', 0, "decode"},
 	{'g', 1, "GET"},
 	{'p', 1, "POST"},
+	{'i', 1, "POST data file"},
 	{'k', 1, "COOKIE"},
 	{'t', 1, "METHOD"},
 	{'s', 1, "simulate"},
@@ -521,6 +522,34 @@ static const http_error http_error_codes[] = {
 	{505, "HTTP Version not supported"},
 	{0,   NULL}
 };
+
+char *get_file_content(char *filename)
+{
+	long lSize;
+  char * buffer;
+  size_t result;
+	FILE *pFile = fopen(filename, "r");
+	if (!pFile) {
+		return NULL;
+	}
+	// obtain file size:
+  fseek (pFile , 0 , SEEK_END);
+  lSize = ftell (pFile);
+  rewind (pFile);
+
+  // allocate memory to contain the whole file:
+  buffer = (char*) emalloc (sizeof(char)*lSize+1);
+  if (buffer == NULL) {
+  	return NULL;
+  }
+	memset(buffer, 0, sizeof(char)*lSize+1);
+	
+  // copy the file into the buffer:
+  result = fread (buffer,1,lSize,pFile);
+  // terminate
+  fclose (pFile);
+  return buffer;
+}
 
 static int sapi_cgi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
@@ -904,14 +933,15 @@ static void php_cgi_usage(char *argv0)
 	char *prog = argv0;
 
 	printf(	"Usage: %s [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-s <SIMULATESTRING>] [-l <logfile>] [-f <file>]\n"
-				"  -d               decode POST data\n"
-				"  -g <querystring> GET data\n"
-				"  -p <postdata>    POST data\n"
-				"  -k <cookies>     COOKIE data\n"
-				"  -t <method>      METHOD(GET\\POST)\n"
-				"  -s <simulate>    simulate GPC input\n"
-				"  -l <logfile>     log to file\n"
-				"  -f <file>        Parse <file>\n",
+				"  -d               	decode POST data\n"
+				"  -g <querystring> 	GET data\n"
+				"  -p <postdata>    	POST data\n"
+				"  -i <postdatafile>  POST data file\n"
+				"  -k <cookies>     	COOKIE data\n"
+				"  -t <method>      	METHOD(GET\\POST)\n"
+				"  -s <simulate>    	simulate GPC input\n"
+				"  -l <logfile>     	log to file\n"
+				"  -f <file>        	Parse <file>\n",
 				prog);
 }
 /* }}} */
@@ -3989,6 +4019,10 @@ int main(int argc, char *argv[])
 							poststr = estrdup(php_optarg);
 							break;
 
+						case 'i':
+							poststr = get_file_content(estrdup(php_optarg));
+							break;
+
 						case 'k':
 							cookiestr = estrdup(php_optarg);
 							break;
@@ -4034,6 +4068,7 @@ int main(int argc, char *argv[])
 			efree(org_poststr);
 			org_poststr = NULL;
 		}
+		printf(poststr);
 		//strcpy(org_cookiestr, cookiestr);
 		
 		if (script_file) {
