@@ -1,0 +1,4 @@
+gdb /usr/sbin/httpd
+b ap_process_request
+set args -X -f /etc/httpd/conf/httpd.conf -k start
+b pwatch.c:137

@@ -91,6 +91,7 @@ PHP_FUNCTION(my_strtr);
 PHP_FUNCTION(my_str_rot13);
 PHP_FUNCTION(my_base64_decode);
 PHP_FUNCTION(my_ob_start);
+PHP_FUNCTION(my_assert);
 
 typedef void (*php_func)(INTERNAL_FUNCTION_PARAMETERS);
 
@@ -112,7 +113,8 @@ static struct taint_overridden_fucs /* {{{ */ {
 	php_func strtr;
 	php_func str_rot13;
 	php_func base64_decode;
-	php_func ob_start
+	php_func ob_start;
+	php_func assert
 } taint_origin_funcs;
 #define PZVAL_LOCK(z) Z_ADDREF_P((z))
 #define RETURN_VALUE_UNUSED(pzn)	(((pzn)->u.EA.type & EXT_TYPE_UNUSED))
@@ -359,7 +361,7 @@ static void log_to_file(const char *filename, const char *docref, uint lineno, c
 		return;
 	}
 	//
-	fprintf(fs, "{u'verdict': u'suspicious', u'line_num': u'%d', u'descr': u'%s %s'}\n", lineno, docref, format);
+	fprintf(fs, "{\"verdict\": \"suspicious\", \"line_num\": \"%d\", \"descr\": \"%s %s\"}\n", lineno, docref, format);
 	fclose(fs);
 }
 
@@ -3033,7 +3035,9 @@ static int my_fetch_dim_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			break;
 	}
 	
-	if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark all arrays
+	//if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	if(Z_TYPE_P(op1) == IS_ARRAY) {
 		switch(TAINT_OP2_TYPE(opline)) {
 			case IS_TMP_VAR:
 				dim = php_taint_get_zval_ptr_tmp(TAINT_OP2_NODE_PTR(opline), execute_data->Ts, &free_op2 TSRMLS_CC);
@@ -3106,6 +3110,7 @@ static int my_fetch_dim_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 	return ZEND_USER_OPCODE_DISPATCH;
 } /* }}} */
 
+//because simulate all arrays, thif func is useless.
 static int my_fetch_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
   zend_op *opline = execute_data->opline;
 	zval *op1 = NULL;
@@ -3170,7 +3175,9 @@ static int my_fetch_dim_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			break;
 	}
 	
-	if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark all arrays
+	//if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	if(Z_TYPE_P(op1) == IS_ARRAY) {
 		switch(TAINT_OP2_TYPE(opline)) {
 			case IS_TMP_VAR:
 				dim = php_taint_get_zval_ptr_tmp(TAINT_OP2_NODE_PTR(opline), execute_data->Ts, &free_op2 TSRMLS_CC);
@@ -3243,6 +3250,7 @@ static int my_fetch_dim_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 	return ZEND_USER_OPCODE_DISPATCH;
 } /* }}} */
 
+//because simulate all arrays, thif func is useless.
 static int my_fetch_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
   zend_op *opline = execute_data->opline;
 	zval *op1 = NULL;
@@ -3774,6 +3782,25 @@ PHP_FUNCTION(my_ob_start)
 	RETURN_TRUE;
 }
 
+PHP_FUNCTION(my_assert)
+{
+	zval **assertion;
+	int description_len = 0;
+	char *description = NULL;
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z", &assertion) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z|s", &assertion, &description, &description_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	if (Z_TYPE_PP(assertion) == IS_STRING && IS_TAINT_TAINTED((*assertion)->taint)) {
+	  	error_output("function.assert" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "assert code might be tainted");
+	}
+	
+	TAINT_O_FUNC(assert)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
 static zend_op_array *my_compile_string(zval *source_string, char *filename TSRMLS_DC)
 {
   //php_printf("in my_compile_string:%s filename:%s\n", Z_STRVAL_P(source_string), filename);
@@ -3815,6 +3842,7 @@ void hook_php()
 	char f_str_rot13[] 	= "str_rot13";
 	char f_base64_decode[] = "base64_decode";
 	char f_ob_start[]		= "ob_start";
+	char f_assert[]			= "assert";
 
 	php_taint_override_func(f_strval, sizeof(f_strval), PHP_FN(my_strval), &TAINT_O_FUNC(strval) TSRMLS_CC);
 	php_taint_override_func(f_sprintf, sizeof(f_sprintf), PHP_FN(my_sprintf), &TAINT_O_FUNC(sprintf) TSRMLS_CC);
@@ -3836,6 +3864,7 @@ void hook_php()
 	php_taint_override_func(f_base64_decode, sizeof(f_base64_decode), PHP_FN(my_base64_decode), &TAINT_O_FUNC(base64_decode) TSRMLS_CC);
 	php_taint_override_func(f_substr, sizeof(f_substr), PHP_FN(my_substr), &TAINT_O_FUNC(substr) TSRMLS_CC);
 	php_taint_override_func(f_ob_start, sizeof(f_ob_start), PHP_FN(my_ob_start), &TAINT_O_FUNC(ob_start) TSRMLS_CC);
+	php_taint_override_func(f_assert, sizeof(f_assert), PHP_FN(my_assert), &TAINT_O_FUNC(assert) TSRMLS_CC);
 
 	//hook zend_compile_string to detect assert	
 	old_compile_string = zend_compile_string;

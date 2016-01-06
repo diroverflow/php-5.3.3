@@ -1,0 +1,26 @@
+原理：
+将HTTP请求内容传入PHP引擎模拟执行特定php文件，对传入数据进行污点标记，并跟踪，最终如果在关键函数（eval、system等）出现污点数据，则认为该php文件为疑似攻击程序。
+
+实现：
+通过一个SAPI模块（cgi）把HTTP请求传入PHP引擎，并在SAPI模块中HOOK PHP关键函数，在关键函数中判断流入数据是否包含污点。
+
+HOOK方式：
+对PHP关键函数的HOOK分为两种：
+1.直接从CG(function_table)中替换原始函数
+2.设置opcode handler
+对于大部分字符串处理函数采取方法1，对于核心处理函数采取方法2。
+开始HOOK位置是cgi_main.c中模拟传入GPC数据后。
+
+GPC数据标记：
+通过对PG(http_globals)[TRACK_VARS_GET/POST/COOKIE]的内容进行标记即可成功标记GPC流入数据，经研究发现开始标记的合适位置是main/main.c中php_request_startup()函数中php_hash_environment语句之后。
+
+代码：
+本项目以PHP-5.3.3为基础进行改造，改动文件包括：
+main\main.c
+Zend\zend.c
+Zend\zend.h
+sapi\cgi\cgi_main.c
+
+测试方法：
+sapi/cgi/php-cgi -p a=b -t POST -f test.php
+指定方法POST，并发送POST数据a=b，给test.php模拟执行

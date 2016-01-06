@@ -1,0 +1,58 @@
+<?php
+$a=$_GET['a'];
+echo $a;
+?>
+[root@S567945 ~]# php -dvld.active=1 1.php
+Finding entry points
+Branch analysis from position: 0
+Jump found. Position 1 = -2
+filename:       /root/1.php
+function name:  (null)
+number of ops:  5
+compiled vars:  !0 = $a
+line     #* E I O op                           fetch          ext  return  opera
+nds
+--------------------------------------------------------------------------------
+-----
+   2     0  E >   FETCH_R                      global              $0      '_GET'
+         1        FETCH_DIM_R                                      $1      $0, 'a'
+         2        ASSIGN                                                   !0, $1
+   3     3        ECHO                                                     !0
+   5     4      > RETURN                                                   1
+
+branch: #  0; line:     2-    5; sop:     0; eop:     4; out1:  -2
+path #1: 0,
+PHP Notice:  Undefined index: a in /root/1.php on line 2
+
+Notice: Undefined index: a in /root/1.php on line 2
+[root@S567945 ~]#
+
+
+<?php
+$a=$_REQUEST['a'];
+$a($_REQUEST['b']);
+?>
+[root@S567945 ~]# php -dvld.active=1 dim.php
+Finding entry points
+Branch analysis from position: 0
+Jump found. Position 1 = -2
+filename:       /root/dim.php
+function name:  (null)
+number of ops:  9
+compiled vars:  !0 = $a
+line     #* E I O op                           fetch          ext  return  opera
+nds
+--------------------------------------------------------------------------------
+-----
+   2     0  E >   FETCH_R                      global              $0      '_REQUEST'
+         1        FETCH_DIM_R                                      $1      $0, 'a'
+         2        ASSIGN                                                   !0, $1
+   3     3        INIT_FCALL_BY_NAME                                       !0
+         4        FETCH_FUNC_ARG               unknown             $3      '_REQUEST'
+         5        FETCH_DIM_FUNC_ARG                               $4      $3, 'b'
+         6        SEND_VAR                                                 $4
+         7        DO_FCALL_BY_NAME                              1
+   5     8      > RETURN                                                   1
+
+branch: #  0; line:     2-    5; sop:     0; eop:     8; out1:  -2
+path #1: 0,

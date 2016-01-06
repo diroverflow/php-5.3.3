@@ -62,7 +62,7 @@ step:
 	
 用法
 -----
-sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-l <logfile>] [-f <file>]
+sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-i <POSTDATAFILE>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-l <logfile>] [-f <file>]
 
   -d               decode POST data		编码POST数据，以\xAA\xBB的形式输入，避免不可见字符
   
@@ -70,6 +70,8 @@ sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODS
  
   -p <postdata>    POST data					POST数据
  
+  -i <postdatafile>POST data file			POST数据文件
+
   -k <cookies>     COOKIE data				COOKIE数据
 
   -t <method>      METHOD(GET\POST)		请求方法，GET或POST
