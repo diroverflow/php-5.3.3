@@ -1439,15 +1439,31 @@ int php_request_startup(TSRMLS_D)
 
 		php_hash_environment(TSRMLS_C);
 		zend_activate_modules(TSRMLS_C);
+		
 		//taint global POST/GET/COOKIE
-		if (PG(http_globals)[TRACK_VARS_POST] && zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_POST]))) {
-			php_taint_mark_strings(PG(http_globals)[TRACK_VARS_POST],TAINT_POST TSRMLS_CC);
+		if (PG(http_globals)[TRACK_VARS_POST]) {
+			//SIMULATE GPCR arrays for fetch_dim_r()
+			Z_SIMULATE_P(PG(http_globals)[TRACK_VARS_POST]);
+
+			if(zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_POST]))) {
+				php_taint_mark_strings(PG(http_globals)[TRACK_VARS_POST],TAINT_POST TSRMLS_CC);
+			}
 		}
-	  if (PG(http_globals)[TRACK_VARS_GET] && zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_GET]))) {
-			php_taint_mark_strings(PG(http_globals)[TRACK_VARS_GET],TAINT_GET TSRMLS_CC);
+		if (PG(http_globals)[TRACK_VARS_GET]) {
+			//SIMULATE GPCR arrays for fetch_dim_r()
+			Z_SIMULATE_P(PG(http_globals)[TRACK_VARS_GET]);
+
+			if(zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_GET]))) {
+				php_taint_mark_strings(PG(http_globals)[TRACK_VARS_GET],TAINT_GET TSRMLS_CC);
+			}
 		}
-	  if (PG(http_globals)[TRACK_VARS_COOKIE] && zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_COOKIE]))) {
-			php_taint_mark_strings(PG(http_globals)[TRACK_VARS_COOKIE],TAINT_COOKIE TSRMLS_CC);
+		if (PG(http_globals)[TRACK_VARS_COOKIE]) {
+			//SIMULATE GPCR arrays for fetch_dim_r()
+			Z_SIMULATE_P(PG(http_globals)[TRACK_VARS_COOKIE]);
+
+			if(zend_hash_num_elements(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_COOKIE]))) {
+				php_taint_mark_strings(PG(http_globals)[TRACK_VARS_COOKIE],TAINT_COOKIE TSRMLS_CC);
+			}
 		}
 
 		PG(modules_activated)=1;

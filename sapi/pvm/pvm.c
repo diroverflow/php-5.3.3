@@ -3035,9 +3035,9 @@ static int my_fetch_dim_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			break;
 	}
 	
-	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark all arrays
-	//if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
-	if(Z_TYPE_P(op1) == IS_ARRAY) {
+	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark it at main/main.c php_request_startup()
+	if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	//if(Z_TYPE_P(op1) == IS_ARRAY) {
 		switch(TAINT_OP2_TYPE(opline)) {
 			case IS_TMP_VAR:
 				dim = php_taint_get_zval_ptr_tmp(TAINT_OP2_NODE_PTR(opline), execute_data->Ts, &free_op2 TSRMLS_CC);
@@ -3110,7 +3110,7 @@ static int my_fetch_dim_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 	return ZEND_USER_OPCODE_DISPATCH;
 } /* }}} */
 
-//because simulate all arrays, thif func is useless.
+//because simulate GPCR arrays in main/main.c - php_request_startup, thif func is useless.
 static int my_fetch_func_arg(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
   zend_op *opline = execute_data->opline;
 	zval *op1 = NULL;
@@ -3175,9 +3175,9 @@ static int my_fetch_dim_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			break;
 	}
 	
-	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark all arrays
-	//if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
-	if(Z_TYPE_P(op1) == IS_ARRAY) {
+	//this kind of webshell can not be mark: $test = '_POST';eval(${$test}['c']);, so mark it at main/main.c php_request_startup()
+	if(IS_SIMULATED(op1) && Z_TYPE_P(op1) == IS_ARRAY) {
+	//if(Z_TYPE_P(op1) == IS_ARRAY) {
 		switch(TAINT_OP2_TYPE(opline)) {
 			case IS_TMP_VAR:
 				dim = php_taint_get_zval_ptr_tmp(TAINT_OP2_NODE_PTR(opline), execute_data->Ts, &free_op2 TSRMLS_CC);
@@ -3250,7 +3250,7 @@ static int my_fetch_dim_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 	return ZEND_USER_OPCODE_DISPATCH;
 } /* }}} */
 
-//because simulate all arrays, thif func is useless.
+//because simulate GPCR arrays in main/main.c - php_request_startup, thif func is useless.
 static int my_fetch_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
   zend_op *opline = execute_data->opline;
 	zval *op1 = NULL;
@@ -3887,9 +3887,9 @@ void hook_php()
   zend_set_user_opcode_handler(ZEND_SEND_REF, my_send_ref);									//send var ref to a function
 	zend_set_user_opcode_handler(ZEND_QM_ASSIGN, my_qm_assign);								//Assigns a value to the result of a ternary operator expression,eg,$x=(3>4)?1:2;
 	if(simstr) {
-		zend_set_user_opcode_handler(ZEND_FETCH_R, my_fetch_r);										//fetch global GPC data
+		//zend_set_user_opcode_handler(ZEND_FETCH_R, my_fetch_r);										//fetch global GPC data
 		zend_set_user_opcode_handler(ZEND_FETCH_DIM_R, my_fetch_dim_r);						//fetch global GPC data
-		zend_set_user_opcode_handler(ZEND_FETCH_FUNC_ARG, my_fetch_func_arg);										//fetch global GPC data
+		//zend_set_user_opcode_handler(ZEND_FETCH_FUNC_ARG, my_fetch_func_arg);										//fetch global GPC data
 		zend_set_user_opcode_handler(ZEND_FETCH_DIM_FUNC_ARG, my_fetch_dim_func_arg);	//fetch global GPC data
 	}
 	

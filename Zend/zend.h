@@ -326,6 +326,7 @@ struct _zval_struct {
 #define SIMULATE_MARK 0x67387E00
 #define IS_SIMULATED(pz) (pz->taint==SIMULATE_MARK)
 #define Z_SIMULATE_PP(ppz) (*(ppz))->taint=SIMULATE_MARK
+#define Z_SIMULATE_P(pz) pz->taint=SIMULATE_MARK
 
 //taint from GET/POST/COOKIE
 #define TAINT_MARK 0x742B5800
