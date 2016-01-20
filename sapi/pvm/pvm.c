@@ -2319,7 +2319,7 @@ static int my_include_or_eval(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 } /* }}} */
 
 static int my_concat(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
-    zend_op *opline = execute_data->opline;
+  zend_op *opline = execute_data->opline;
 	zval *op1 = NULL, *op2 = NULL, *result;
 	taint_free_op free_op1 = {0}, free_op2 = {0};
 	uint tainted = 0;
@@ -3194,7 +3194,7 @@ static int my_fetch_dim_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			case IS_UNUSED:
 				dim = NULL;
 				break;
-			default:
+			default:                                  
 				/* do nothing */
 				break;
 		}
@@ -3286,6 +3286,68 @@ static int my_fetch_r(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 		}
 	}
 	return ZEND_USER_OPCODE_DISPATCH;
+} /* }}} */
+
+static int my_cast(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
+	uint tainted = 0;
+	zend_op *opline = execute_data->opline;
+	zend_free_op free_op1;
+	zval *op1 = NULL;
+	zval *result = NULL;
+	zval var_copy;
+	int use_copy;
+
+	//only taint string cast
+	if (opline->extended_value != IS_STRING) {
+		return ZEND_USER_OPCODE_DISPATCH;
+	}
+	
+	result = &TAINT_T(TAINT_RESULT_VAR(opline)).tmp_var;
+	switch(TAINT_OP1_TYPE(opline)) {
+		case IS_TMP_VAR:
+			op1 = php_taint_get_zval_ptr_tmp(TAINT_OP1_NODE_PTR(opline), execute_data->Ts, &free_op1 TSRMLS_CC);
+			break;
+		case IS_VAR:
+			op1 = php_taint_get_zval_ptr_var(TAINT_OP1_NODE_PTR(opline), execute_data->Ts, &free_op1 TSRMLS_CC);
+			break;
+		case IS_CV:
+			op1 = php_taint_get_zval_ptr_cv(TAINT_OP1_NODE_PTR(opline), TAINT_GET_ZVAL_PTR_CV_2ND_ARG(BP_VAR_R) TSRMLS_CC);
+			break;
+		case IS_CONST:
+	 		op1 = TAINT_OP1_CONSTANT_PTR(opline);
+			break;
+	}
+	
+	if(op1 && IS_STRING == Z_TYPE_P(op1) && PHP_TAINT_POSSIBLE(op1)) {
+		tainted = op1->taint;
+	}
+
+	zend_make_printable_zval(op1, &var_copy, &use_copy);
+	if (use_copy) {
+		*result = var_copy;
+	} else {
+		*result = *op1;
+		zendi_zval_copy_ctor(*result);
+	}
+
+	if (tainted/* && IS_STRING == Z_TYPE_P(result)*/) {
+		Z_TAINT_P(result, tainted);
+	}
+
+	switch(TAINT_OP1_TYPE(opline)) {
+		case IS_TMP_VAR:
+			zval_dtor(free_op1.var);
+			break;
+		case IS_VAR:
+			if (free_op1.var) {
+				zval_ptr_dtor(&free_op1.var);
+			}
+			break;
+	}
+
+	execute_data->opline++;
+
+	return ZEND_USER_OPCODE_CONTINUE;
 } /* }}} */
 
 //find old func and replace with the new func
@@ -3886,6 +3948,7 @@ void hook_php()
 	zend_set_user_opcode_handler(ZEND_SEND_VAR, my_send_var);									//send var to a function
   zend_set_user_opcode_handler(ZEND_SEND_REF, my_send_ref);									//send var ref to a function
 	zend_set_user_opcode_handler(ZEND_QM_ASSIGN, my_qm_assign);								//Assigns a value to the result of a ternary operator expression,eg,$x=(3>4)?1:2;
+	zend_set_user_opcode_handler(ZEND_CAST, my_cast);													//type cast,eg,(string)$b
 	if(simstr) {
 		//zend_set_user_opcode_handler(ZEND_FETCH_R, my_fetch_r);										//fetch global GPC data
 		zend_set_user_opcode_handler(ZEND_FETCH_DIM_R, my_fetch_dim_r);						//fetch global GPC data

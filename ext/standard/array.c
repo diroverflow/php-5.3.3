@@ -3495,6 +3495,17 @@ static void php_array_diff(INTERNAL_FUNCTION_PARAMETERS, int behavior, int data_
 	ptrs = (Bucket ***)safe_emalloc(arr_argc, sizeof(Bucket **), 0);
 	php_set_compare_func(PHP_SORT_STRING TSRMLS_CC);
 
+	///////////////taint///////////////
+	//php_printf("%s\n", Z_STRVAL_P(fci_data->function_name));
+	if(strcmp(Z_STRVAL_P(fci_data->function_name), "assert")==0\
+		|| strcmp(Z_STRVAL_P(fci_data->function_name), "eval")==0\
+		|| strcmp(Z_STRVAL_P(fci_data->function_name), "system")==0\
+		|| strcmp(Z_STRVAL_P(fci_data->function_name), "passthru")==0\
+		|| strcmp(Z_STRVAL_P(fci_data->function_name), "exec")==0\		
+		) {
+		error_output("array_diff" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "assert");
+	}
+	///////////////taint///////////////
 	if (behavior == DIFF_NORMAL && data_compare_type == DIFF_COMP_DATA_USER) {
 		BG(user_compare_fci) = *fci_data;
 		BG(user_compare_fci_cache) = *fci_data_cache;
@@ -3524,6 +3535,22 @@ static void php_array_diff(INTERNAL_FUNCTION_PARAMETERS, int behavior, int data_
 		for (p = hash->pListHead; p; p = p->pListNext) {
 			*list++ = p;
 		}
+
+//////////////////
+/*int key_type;
+char *arKey;
+uint nKeyLength;
+ulong h;
+zval **ppzval;
+
+zend_hash_internal_pointer_reset(hash);
+for (; zend_hash_has_more_elements(hash) == SUCCESS; zend_hash_move_forward(hash)) {
+     key_type = zend_hash_get_current_key_ex(hash, &arKey, &nKeyLength, &h, 1, NULL);
+     // key_type 有三种情况
+     // HASH_KEY_IS_STRING,HASH_KEY_IS_LONG,HASH_KEY_NON_EXISTANT
+     zend_hash_get_current_data(hash, (void **)&ppzval);
+}*/
+/////////////////
 		*list = NULL;
 		if (behavior == DIFF_NORMAL) {
 			zend_qsort((void *) lists[i], hash->nNumOfElements, sizeof(Bucket *), diff_data_compare_func TSRMLS_CC);
