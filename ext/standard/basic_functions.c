@@ -117,6 +117,8 @@ PHPAPI php_basic_globals basic_globals;
 #include "php_fopen_wrappers.h"
 #include "streamsfuncs.h"
 
+#define FILTER_CALLBACK               0x0400
+
 static zend_class_entry *incomplete_class_entry = NULL;
 
 typedef struct _php_shutdown_function_entry {
@@ -3553,6 +3555,8 @@ PHP_MINIT_FUNCTION(basic) /* {{{ */
 
 	BG(incomplete_class) = incomplete_class_entry = php_create_incomplete_class(TSRMLS_C);
 
+	REGISTER_LONG_CONSTANT("FILTER_CALLBACK", FILTER_CALLBACK, CONST_CS | CONST_PERSISTENT);
+	
 	REGISTER_LONG_CONSTANT("CONNECTION_ABORTED", PHP_CONNECTION_ABORTED, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("CONNECTION_NORMAL",  PHP_CONNECTION_NORMAL,  CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("CONNECTION_TIMEOUT", PHP_CONNECTION_TIMEOUT, CONST_CS | CONST_PERSISTENT);

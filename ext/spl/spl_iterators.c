@@ -1797,7 +1797,7 @@ SPL_METHOD(RegexIterator, accept)
 
 	case REGIT_MODE_REPLACE:
 		replacement = zend_read_property(intern->std.ce, getThis(), "replacement", sizeof("replacement")-1, 1 TSRMLS_CC);
-		result = php_pcre_replace_impl(intern->u.regex.pce, subject, subject_len, replacement, 0, &result_len, 0, NULL, 0 TSRMLS_CC);
+		result = php_pcre_replace_impl(intern->u.regex.pce, subject, subject_len, replacement, 0, &result_len, 0, NULL TSRMLS_CC);
 		
 		if (intern->u.regex.flags & REGIT_USE_KEY) {
 			if (intern->current.key_type != HASH_KEY_IS_LONG) {

@@ -18,7 +18,7 @@
 
 /* $Id: build-defs.h.in 292156 2009-12-15 11:17:47Z jani $ */
 
-#define CONFIGURE_COMMAND " './configure'  '--disable-cli' '--disable-all' '--with-zlib'"
+#define CONFIGURE_COMMAND " './configure' "
 #define PHP_ADA_INCLUDE		""
 #define PHP_ADA_LFLAGS		""
 #define PHP_ADA_LIBS		""
@@ -75,8 +75,8 @@
 #define PHP_LDAP_LIBS		""
 #define PHP_BIRDSTEP_INCLUDE     ""
 #define PHP_BIRDSTEP_LIBS        ""
-#define PEAR_INSTALLDIR         ""
-#define PHP_INCLUDE_PATH	".:"
+#define PEAR_INSTALLDIR         "/usr/local/lib/php"
+#define PHP_INCLUDE_PATH	".:/usr/local/lib/php"
 #define PHP_EXTENSION_DIR       "/usr/local/lib/php/extensions/no-debug-non-zts-20090626"
 #define PHP_PREFIX              "/usr/local"
 #define PHP_BINDIR              "/usr/local/bin"

@@ -93,6 +93,23 @@ PHP_FUNCTION(my_base64_decode);
 PHP_FUNCTION(my_ob_start);
 PHP_FUNCTION(my_assert);
 
+#define FILTER_CALLBACK               0x0400
+PHP_FUNCTION(filter_var);
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_filter_var, 0, 0, 1)
+	ZEND_ARG_INFO(0, variable)
+	ZEND_ARG_INFO(0, filter)
+	ZEND_ARG_INFO(0, options)
+ZEND_END_ARG_INFO()
+
+/* {{{ filter_functions[]
+ */
+static const zend_function_entry filter_functions[] = {
+	PHP_FE(filter_var,		arginfo_filter_var)
+	{ NULL, NULL, NULL, 0, 0 }
+};
+/* }}} */
+
 typedef void (*php_func)(INTERNAL_FUNCTION_PARAMETERS);
 
 static struct taint_overridden_fucs /* {{{ */ {
@@ -244,6 +261,7 @@ char *methodstr = "POST";//NULL;
 char *simstr = NULL;
 char *typestr = "application/x-www-form-urlencoded";
 char *logfile = NULL;
+char *inifile = "pvm.ini";
 
 static const opt_struct OPTIONS[] = {
 	{'f', 1, "file"},
@@ -257,6 +275,7 @@ static const opt_struct OPTIONS[] = {
 	{'k', 1, "COOKIE"},
 	{'t', 1, "METHOD"},
 	{'s', 1, "simulate"},
+	{'c', 1, "ini file"},
 	{'-', 0, NULL} /* end of args */
 };
 
@@ -934,7 +953,7 @@ static void php_cgi_usage(char *argv0)
 {
 	char *prog = argv0;
 
-	printf(	"Usage: %s [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-s <SIMULATESTRING>] [-l <logfile>] [-f <file>]\n"
+	printf(	"Usage: %s [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-s <SIMULATESTRING>] [-c <inifile>] [-l <logfile>] [-f <file>]\n"
 				"  -d               	decode POST data\n"
 				"  -g <querystring> 	GET data\n"
 				"  -p <postdata>    	POST data\n"
@@ -942,6 +961,7 @@ static void php_cgi_usage(char *argv0)
 				"  -k <cookies>     	COOKIE data\n"
 				"  -t <method>      	METHOD(GET\\POST)\n"
 				"  -s <simulate>    	simulate GPC input\n"
+				"  -c <inifile>       php ini file\n",
 				"  -l <logfile>     	log to file\n"
 				"  -f <file>        	Parse <file>\n",
 				prog);
@@ -1386,7 +1406,7 @@ static PHP_MINFO_FUNCTION(cgi)
 static zend_module_entry cgi_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"pvm",
-	NULL,
+	filter_functions,
 	PHP_MINIT(cgi),
 	PHP_MSHUTDOWN(cgi),
 	NULL,
@@ -3830,7 +3850,7 @@ PHP_FUNCTION(my_ob_start)
 	}
 	if (output_handler && output_handler->type == IS_STRING) {
 		handler_name = Z_STRVAL_P(output_handler);
-		if (strstr(handler_name, "eval") || strstr(handler_name, "assert") || strstr(handler_name, "preg_replace")) {
+		if (strstr(handler_name, "eval") || strstr(handler_name, "assert") || strstr(handler_name, "preg_replace") || strstr(handler_name, "system")) {
 			error_output("function.ob_start" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "ob_start code might be tainted");
 		}
 	}
@@ -3862,6 +3882,24 @@ PHP_FUNCTION(my_assert)
 	
 	TAINT_O_FUNC(assert)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
+
+/*empty function just for detecting 
+ *{{{ proto mixed filter_var(mixed variable [, long filter [, mixed options]])
+ * Returns the filtered version of the vriable.
+ */
+PHP_FUNCTION(filter_var)
+{
+	long filter;
+	zval **filter_args = NULL, *data;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z/|lZ", &data, &filter, &filter_args) == FAILURE) {
+		return;
+	}
+	if (Z_TYPE_P(data) == IS_STRING && IS_TAINT_TAINTED(data->taint)) {
+	  	error_output("function.filter_var" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "filter_var might be tainted");
+	}
+}
+/* }}} */
 
 static zend_op_array *my_compile_string(zval *source_string, char *filename TSRMLS_DC)
 {
@@ -4036,7 +4074,23 @@ int main(int argc, char *argv[])
 #endif
 
 	sapi_startup(&cgi_sapi_module);
-	cgi_sapi_module.php_ini_path_override = NULL;
+	
+	php_optind = orig_optind;
+	php_optarg = orig_optarg;
+	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2)) != -1) {
+		switch (c) {
+			case 'c':
+				inifile=malloc(strlen(php_optarg)+1);
+				strcpy(inifile, php_optarg);
+				inifile[strlen(php_optarg)]=0;
+				cgi_sapi_module.php_ini_path_override = inifile;
+				break;
+
+			default:
+				break;
+		}
+	}
+	//cgi_sapi_module.php_ini_path_override = inifile; //move up
 
 #ifdef PHP_WIN32
 	_fmode = _O_BINARY; /* sets default for file streams to binary */
@@ -4055,12 +4109,12 @@ int main(int argc, char *argv[])
 	cgi_sapi_module.executable_location = argv[0];
 	cgi_sapi_module.additional_functions = additional_functions;
 
-	/* startup after we get the above ini override se we get things right */
-	if (cgi_sapi_module.startup(&cgi_sapi_module) == FAILURE) {
+		/* startup after we get the above ini override se we get things right */
+		if (cgi_sapi_module.startup(&cgi_sapi_module) == FAILURE) {
 #ifdef ZTS
-		tsrm_shutdown();
+			tsrm_shutdown();
 #endif
-		return FAILURE;
+			return FAILURE;
 	}
 
 	zend_first_try {
@@ -4203,7 +4257,7 @@ int main(int argc, char *argv[])
 				
 		//hook PHP kernel functions
 		hook_php();
-
+		
 		/*
 					we never take stdin if we're (f)cgi, always
 					rely on the web server giving us the info
@@ -4270,6 +4324,7 @@ int main(int argc, char *argv[])
 		if (cgi_sapi_module.php_ini_path_override) {
 			free(cgi_sapi_module.php_ini_path_override);
 		}
+
 		if (cgi_sapi_module.ini_entries) {
 			free(cgi_sapi_module.ini_entries);
 		}
