@@ -92,6 +92,11 @@ PHP_FUNCTION(my_str_rot13);
 PHP_FUNCTION(my_base64_decode);
 PHP_FUNCTION(my_ob_start);
 PHP_FUNCTION(my_assert);
+PHP_FUNCTION(my_uksort);
+PHP_FUNCTION(my_array_reduce);
+PHP_FUNCTION(my_preg_replace_callback);
+PHP_FUNCTION(my_define);
+//PHP_FUNCTION(my_popen);
 
 #define FILTER_CALLBACK               0x0400
 PHP_FUNCTION(filter_var);
@@ -131,7 +136,12 @@ static struct taint_overridden_fucs /* {{{ */ {
 	php_func str_rot13;
 	php_func base64_decode;
 	php_func ob_start;
-	php_func assert
+	php_func assert;
+	php_func uksort;
+	php_func array_reduce;
+	php_func preg_replace_callback;
+	php_func define;
+//	php_func popen
 } taint_origin_funcs;
 #define PZVAL_LOCK(z) Z_ADDREF_P((z))
 #define RETURN_VALUE_UNUSED(pzn)	(((pzn)->u.EA.type & EXT_TYPE_UNUSED))
@@ -2665,6 +2675,7 @@ static void php_taint_fcall_check(ZEND_OPCODE_HANDLER_ARGS, zend_op *opline, cha
 					|| strncmp("system", fname, len) == 0
 					|| strncmp("exec", fname, len) == 0
 					|| strncmp("shell_exec", fname, len) == 0
+					|| strncmp("popen", fname, len) == 0
 					|| strncmp("proc_open", fname, len) == 0 ) {
 				zval *el;
 				el = *((zval **) (p - arg_count));
@@ -2733,7 +2744,7 @@ static int my_init_fcall_by_name(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 			break;
 	}
 
-	if (op2 || *op2 != &EG(error_zval) || Z_TYPE_PP(op2) == IS_STRING || Z_STRLEN_PP(op2) || PHP_TAINT_POSSIBLE((*op2))) {
+	if (op2 && *op2 != &EG(error_zval) && Z_TYPE_PP(op2) == IS_STRING && Z_STRLEN_PP(op2) && PHP_TAINT_POSSIBLE((*op2))) {
 		error_output("call by var" TSRMLS_CC, opline->lineno, "The function name might be tainted");
 	}
 	return ZEND_USER_OPCODE_DISPATCH;
@@ -3370,6 +3381,39 @@ static int my_cast(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
 	return ZEND_USER_OPCODE_CONTINUE;
 } /* }}} */
 
+/* NOT USED */
+static int my_fetch_constant(ZEND_OPCODE_HANDLER_ARGS) /* {{{ */ {
+	uint tainted = 0;
+	zend_op *opline = execute_data->opline;
+	zend_free_op free_op2;
+	zval *op2 = NULL;
+	zval *result = NULL;
+
+	//only taint const
+	if (TAINT_OP2_TYPE(opline) != IS_CONST) {
+		return ZEND_USER_OPCODE_DISPATCH;
+	}
+	
+	result = &TAINT_T(TAINT_RESULT_VAR(opline)).tmp_var;
+
+	if (!zend_get_constant_ex(Z_STRVAL(opline->op2.u.constant), Z_STRLEN(opline->op2.u.constant), result, NULL, opline->extended_value TSRMLS_CC)) {
+		return ZEND_USER_OPCODE_DISPATCH;
+	}
+
+	if(result && IS_STRING == Z_TYPE_P(result) && PHP_TAINT_POSSIBLE(result)) {
+		tainted = result->taint;
+	}
+
+
+	if (tainted/* && IS_STRING == Z_TYPE_P(result)*/) {
+		Z_TAINT_P(result, tainted);
+	}
+
+	execute_data->opline++;
+
+	return ZEND_USER_OPCODE_CONTINUE;
+} /* }}} */
+
 //find old func and replace with the new func
 static void php_taint_override_func(char *name, uint len, php_func handler, php_func *stash TSRMLS_DC) /* {{{ */ {
 	zend_function *func;
@@ -3851,7 +3895,7 @@ PHP_FUNCTION(my_ob_start)
 	if (output_handler && output_handler->type == IS_STRING) {
 		handler_name = Z_STRVAL_P(output_handler);
 		if (strstr(handler_name, "eval") || strstr(handler_name, "assert") || strstr(handler_name, "preg_replace") || strstr(handler_name, "system")) {
-			error_output("function.ob_start" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "ob_start code might be tainted");
+			error_output("function.ob_start" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "ob_start code might be tainted");
 		}
 	}
 	
@@ -3877,10 +3921,132 @@ PHP_FUNCTION(my_assert)
 	}
 
 	if (Z_TYPE_PP(assertion) == IS_STRING && IS_TAINT_TAINTED((*assertion)->taint)) {
-	  	error_output("function.assert" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "assert code might be tainted");
+	  	error_output("function.assert" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "assert code might be tainted");
 	}
 	
 	TAINT_O_FUNC(assert)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(my_uksort)
+{
+	zval *input;
+	zval **op1;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "aZ", &input, &op1) == FAILURE) {
+		return;
+	}
+	if (Z_TYPE_PP(op1) == IS_STRING && IS_TAINT_TAINTED((*op1)->taint)) {
+	  	error_output("function.uksort" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "uksort might be tainted");
+	}
+	
+	TAINT_O_FUNC(uksort)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(my_array_reduce)
+{
+	zval *input;
+	zval **op1;
+	zval **op2;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "aZ|Z", &input, &op1, &op2) == FAILURE) {
+		return;
+	}
+	if ((Z_TYPE_PP(op1) == IS_STRING && IS_TAINT_TAINTED((*op1)->taint)) || (Z_TYPE_PP(op2) == IS_STRING && IS_TAINT_TAINTED((*op2)->taint))) {
+	  	error_output("function.array_reduce" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "array_reduce might be tainted");
+	}
+	
+	TAINT_O_FUNC(array_reduce)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(my_preg_replace_callback)
+{
+	zval **op1;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+	zval **op3;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ZfZ", &op1, &fci, &fci_cache, &op3) == FAILURE) {
+		return;
+	}
+	if (Z_TYPE_PP(op3) == IS_STRING && IS_TAINT_TAINTED((*op3)->taint)) {
+	  	error_output("function.preg_replace_callback" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "preg_replace_callback might be tainted");
+	}
+	
+	TAINT_O_FUNC(preg_replace_callback)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(my_define)
+{
+	char *name;
+	int name_len;
+	zval *val;
+	zval *val_free = NULL;
+	zend_bool non_cs = 0;
+	int case_sensitive = CONST_CS;
+	zend_constant c;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|b", &name, &name_len, &val, &non_cs) == FAILURE) {
+		return;
+	}
+
+	if(non_cs) {
+		case_sensitive = 0;
+	}
+
+	/* class constant, check if there is name and make sure class is valid & exists */
+	if (zend_memnstr(name, "::", sizeof("::") - 1, name + name_len)) {
+		zend_error(E_WARNING, "Class constants cannot be defined or redefined");
+		RETURN_FALSE;
+	}
+
+repeat:
+	switch (Z_TYPE_P(val)) {
+		case IS_LONG:
+		case IS_DOUBLE:
+		case IS_STRING:
+		case IS_BOOL:
+		case IS_RESOURCE:
+		case IS_NULL:
+			break;
+		case IS_OBJECT:
+			if (!val_free) {
+				if (Z_OBJ_HT_P(val)->get) {
+					val_free = val = Z_OBJ_HT_P(val)->get(val TSRMLS_CC);
+					goto repeat;
+				} else if (Z_OBJ_HT_P(val)->cast_object) {
+					ALLOC_INIT_ZVAL(val_free);
+					if (Z_OBJ_HT_P(val)->cast_object(val, val_free, IS_STRING TSRMLS_CC) == SUCCESS) {
+						val = val_free;
+						break;
+					}
+				}
+			}
+			/* no break */
+		default:
+			zend_error(E_WARNING,"Constants may only evaluate to scalar values");
+			if (val_free) {
+				zval_ptr_dtor(&val_free);
+			}
+			RETURN_FALSE;
+	}
+	
+	c.value = *val;
+	if (Z_TYPE_P(val) == IS_STRING && IS_TAINT_TAINTED(val->taint)) {
+		Z_TAINT(c.value, val->taint);
+	}
+	zval_copy_ctor(&c.value);
+	if (val_free) {
+		zval_ptr_dtor(&val_free);
+	}
+	c.flags = case_sensitive; /* non persistent */
+	c.name = zend_strndup(name, name_len);
+	c.name_len = name_len+1;
+	c.module_number = PHP_USER_CONSTANT;
+	if (zend_register_constant(&c TSRMLS_CC) == SUCCESS) {
+		RETURN_TRUE;
+	} else {
+		RETURN_FALSE;
+	}
 }
 
 /*empty function just for detecting 
@@ -3896,7 +4062,7 @@ PHP_FUNCTION(filter_var)
 		return;
 	}
 	if (Z_TYPE_P(data) == IS_STRING && IS_TAINT_TAINTED(data->taint)) {
-	  	error_output("function.filter_var" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "filter_var might be tainted");
+	  	error_output("function.filter_var" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "filter_var might be tainted");
 	}
 }
 /* }}} */
@@ -3904,15 +4070,15 @@ PHP_FUNCTION(filter_var)
 static zend_op_array *my_compile_string(zval *source_string, char *filename TSRMLS_DC)
 {
   //php_printf("in my_compile_string:%s filename:%s\n", Z_STRVAL_P(source_string), filename);
-  if (PHP_TAINT_POSSIBLE(source_string)) {
+  if (strstr(filename, "mbregex replace tainted")) {
+	  	error_output("function.mb_ereg_replace/e" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "mb_ereg_replace/e might be tainted");
+	}
+	else if (PHP_TAINT_POSSIBLE(source_string)) {
 	  if (strstr(filename, "assert code")) {
-	  	error_output("function.assert" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "assert code might be tainted");
+	  	error_output("function.assert" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "assert code might be tainted");
 	  }
 	  else if (strstr(filename, "regexp code")) {
-	  	error_output("function.preg_replace/e" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "preg_replace/e might be tainted");
-	  }
-	  else if (strstr(filename, "mbregex replace")) {
-	  	error_output("function.mb_ereg_replace/e" TSRMLS_CC, EG(current_execute_data)->opline->lineno, "mb_ereg_replace/e might be tainted");
+	  	error_output("function.preg_replace/e" TSRMLS_CC, EG(current_execute_data)->opline?EG(current_execute_data)->opline->lineno:0, "preg_replace/e might be tainted");
 	  }
 	}
   return old_compile_string(source_string, filename TSRMLS_CC);
@@ -3943,7 +4109,11 @@ void hook_php()
 	char f_base64_decode[] = "base64_decode";
 	char f_ob_start[]		= "ob_start";
 	char f_assert[]			= "assert";
-
+	char f_preg_replace_callback[]			= "preg_replace_callback";
+	char f_array_reduce[]			= "array_reduce";
+	char f_uksort[]			= "uksort";
+	char f_define[]			= "define";
+	
 	php_taint_override_func(f_strval, sizeof(f_strval), PHP_FN(my_strval), &TAINT_O_FUNC(strval) TSRMLS_CC);
 	php_taint_override_func(f_sprintf, sizeof(f_sprintf), PHP_FN(my_sprintf), &TAINT_O_FUNC(sprintf) TSRMLS_CC);
 	php_taint_override_func(f_vsprintf, sizeof(f_vsprintf), PHP_FN(my_vsprintf), &TAINT_O_FUNC(vsprintf) TSRMLS_CC);
@@ -3965,7 +4135,11 @@ void hook_php()
 	php_taint_override_func(f_substr, sizeof(f_substr), PHP_FN(my_substr), &TAINT_O_FUNC(substr) TSRMLS_CC);
 	php_taint_override_func(f_ob_start, sizeof(f_ob_start), PHP_FN(my_ob_start), &TAINT_O_FUNC(ob_start) TSRMLS_CC);
 	php_taint_override_func(f_assert, sizeof(f_assert), PHP_FN(my_assert), &TAINT_O_FUNC(assert) TSRMLS_CC);
-
+	php_taint_override_func(f_uksort, sizeof(f_uksort), PHP_FN(my_uksort), &TAINT_O_FUNC(uksort) TSRMLS_CC);
+	php_taint_override_func(f_array_reduce, sizeof(f_array_reduce), PHP_FN(my_array_reduce), &TAINT_O_FUNC(array_reduce) TSRMLS_CC);
+	php_taint_override_func(f_preg_replace_callback, sizeof(f_preg_replace_callback), PHP_FN(my_preg_replace_callback), &TAINT_O_FUNC(preg_replace_callback) TSRMLS_CC);
+	php_taint_override_func(f_define, sizeof(f_define), PHP_FN(my_define), &TAINT_O_FUNC(define) TSRMLS_CC);
+	
 	//hook zend_compile_string to detect assert	
 	old_compile_string = zend_compile_string;
  	zend_compile_string = my_compile_string; 
@@ -3987,6 +4161,7 @@ void hook_php()
   zend_set_user_opcode_handler(ZEND_SEND_REF, my_send_ref);									//send var ref to a function
 	zend_set_user_opcode_handler(ZEND_QM_ASSIGN, my_qm_assign);								//Assigns a value to the result of a ternary operator expression,eg,$x=(3>4)?1:2;
 	zend_set_user_opcode_handler(ZEND_CAST, my_cast);													//type cast,eg,(string)$b
+	//zend_set_user_opcode_handler(ZEND_FETCH_CONSTANT, my_fetch_constant);			//fetch constant,eg,define(ABC,'phpinfo()');assert(ABC);
 	if(simstr) {
 		//zend_set_user_opcode_handler(ZEND_FETCH_R, my_fetch_r);										//fetch global GPC data
 		zend_set_user_opcode_handler(ZEND_FETCH_DIM_R, my_fetch_dim_r);						//fetch global GPC data

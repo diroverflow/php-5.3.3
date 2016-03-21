@@ -112,7 +112,7 @@
 #define STDC_HEADERS 1
 
 /* Define if you can safely include both <sys/time.h> and <time.h>.  */
-/* #undef TIME_WITH_SYS_TIME */
+#define TIME_WITH_SYS_TIME 1
 
 /* Define if your <sys/time.h> declares struct tm.  */
 /* #undef TM_IN_SYS_TIME */
@@ -727,7 +727,7 @@
 #define HAVE_STRING_H 1
 
 /* Define if you have the <strings.h> header file.  */
-/* #undef HAVE_STRINGS_H */
+#define HAVE_STRINGS_H 1
 
 /* Define if you have the <sys/dir.h> header file.  */
 /* #undef HAVE_SYS_DIR_H */
@@ -787,7 +787,7 @@
 #define HAVE_SYS_TIME_H 1
 
 /* Define if you have the <sys/times.h> header file.  */
-/* #undef HAVE_SYS_TIMES_H */
+#define HAVE_SYS_TIMES_H 1
 
 /* Define if you have the <sys/types.h> header file.  */
 #define HAVE_SYS_TYPES_H 1
@@ -1885,28 +1885,28 @@
 /* #undef HAVE_LDAP_SASL */
 
 /* whether to have multibyte string support */
-/* #undef HAVE_MBSTRING */
+#define HAVE_MBSTRING 1
 
 /* whether to check multibyte regex backtrack */
-/* #undef USE_COMBINATION_EXPLOSION_CHECK */
+#define USE_COMBINATION_EXPLOSION_CHECK 1
 
 /* Define to 1 if you have the <stdarg.h> header file. */
-/* #undef HAVE_STDARG_PROTOTYPES */
+#define HAVE_STDARG_PROTOTYPES 1
 
 /* Define to 1 if the bundled oniguruma is used */
-/* #undef PHP_ONIG_BUNDLED */
+#define PHP_ONIG_BUNDLED 1
 
 /* Define to 1 if the oniguruma library is available */
-/* #undef HAVE_ONIG */
+#define HAVE_ONIG 1
 
 /* Define to 1 if the oniguruma library is available */
-/* #undef HAVE_ONIG */
+#define HAVE_ONIG 1
 
 /* define to 1 if oniguruma has an invalid entry for KOI8 encoding */
 /* #undef PHP_ONIG_BAD_KOI8_ENTRY */
 
 /* whether to have multibyte regex support */
-/* #undef HAVE_MBREGEX */
+#define HAVE_MBREGEX 1
 
 /* Whether to build mbstring as dynamic module */
 /* #undef COMPILE_DL_MBSTRING */
@@ -2896,7 +2896,7 @@
 /* #undef PTHREADS */
 
 /* PHP build date */
-#define PHP_BUILD_DATE "2015-10-13"
+#define PHP_BUILD_DATE "2016-03-18"
 
 /* hardcode for each of the cross compiler host */
 #define PHP_OS "Linux"

@@ -1435,12 +1435,11 @@ int php_request_startup(TSRMLS_D)
 		}
 
 		/* We turn this off in php_execute_script() */
-		/* PG(during_request_startup) = 0; */
-
+		/* PG(during_request_startup) = 0; */		
 		php_hash_environment(TSRMLS_C);
 		zend_activate_modules(TSRMLS_C);
-		
-		//taint global POST/GET/COOKIE
+
+		//taint global POST/GET/COOKIE/REQUEST
 		if (PG(http_globals)[TRACK_VARS_POST]) {
 			//SIMULATE GPCR arrays for fetch_dim_r()
 			Z_SIMULATE_P(PG(http_globals)[TRACK_VARS_POST]);
@@ -1465,6 +1464,7 @@ int php_request_startup(TSRMLS_D)
 				php_taint_mark_strings(PG(http_globals)[TRACK_VARS_COOKIE],TAINT_COOKIE TSRMLS_CC);
 			}
 		}
+		//_REQUEST is simulated in main\php_variables.c:php_auto_globals_create_request()
 
 		PG(modules_activated)=1;
 	} zend_catch {

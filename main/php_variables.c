@@ -876,7 +876,9 @@ static zend_bool php_auto_globals_create_request(char *name, uint name_len TSRML
 				break;
 		}
 	}
-
+	//SIMULATE GPCR arrays for fetch_dim_r()
+	Z_SIMULATE_P(form_variables);
+	
 	zend_hash_update(&EG(symbol_table), "_REQUEST", sizeof("_REQUEST"), &form_variables, sizeof(zval *), NULL);
 	return 0;
 }

@@ -138,7 +138,8 @@ static zend_always_inline void zend_pzval_unlock_free_func(zval *z TSRMLS_DC)
 	(z)->value = (v)->value; \
 	Z_TYPE_P(z) = Z_TYPE_P(v); \
 	Z_SET_REFCOUNT_P(z, 1); \
-	Z_UNSET_ISREF_P(z);
+	Z_UNSET_ISREF_P(z); \
+	Z_TAINT_P(z, (v)->taint);
 
 #define MAKE_REAL_ZVAL_PTR(val) \
 	do { \

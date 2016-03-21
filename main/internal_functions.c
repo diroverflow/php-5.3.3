@@ -29,22 +29,36 @@
 
 #include "ext/date/php_date.h"
 #include "ext/ereg/php_ereg.h"
+#include "ext/libxml/php_libxml.h"
 #include "ext/pcre/php_pcre.h"
+#include "ext/dom/php_dom.h"
+#include "ext/mbstring/mbstring.h"
 #include "ext/zlib/php_zlib.h"
 #include "ext/reflection/php_reflection.h"
+/*#include "ext/simplexml/php_simplexml.h"*/
 #include "ext/spl/php_spl.h"
 #include "ext/standard/php_standard.h"
+#include "ext/xml/php_xml.h"
+#include "ext/xmlreader/php_xmlreader.h"
+#include "ext/xmlwriter/php_xmlwriter.h"
 
 
 static zend_module_entry *php_builtin_extensions[] = {
 	phpext_date_ptr,
 	phpext_ereg_ptr,
+  phpext_libxml_ptr,
+  phpext_dom_ptr,
 	phpext_pcre_ptr,
+  phpext_mbstring_ptr,
 	phpext_zlib_ptr,
 	phpext_reflection_ptr,
 	phpext_spl_ptr,
+/*	phpext_simplexml_ptr,*/
 	phpext_standard_ptr,
-
+	phpext_xml_ptr,
+	phpext_xmlreader_ptr,
+	phpext_xmlwriter_ptr
+	
 };
 
 #define EXTCOUNT (sizeof(php_builtin_extensions)/sizeof(zend_module_entry *))
