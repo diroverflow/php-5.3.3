@@ -4182,7 +4182,7 @@ void hook_php()
 	zend_set_user_opcode_handler(ZEND_DO_FCALL, my_do_fcall);									//call some function,like system/passthru/exec/proc_open/shell_exec/fopen
 	zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, my_do_fcall_by_name);	//call function by name,eg,system("dir");
 	zend_set_user_opcode_handler(ZEND_INIT_FCALL_BY_NAME, my_init_fcall_by_name);	//call function by var,eg,$a="system";$a("dir");
-	//string operation kernel functions 
+	string operation kernel functions 
 	zend_set_user_opcode_handler(ZEND_CONCAT, my_concat);											//string connect,eg,$a="xx"."oo"
 	zend_set_user_opcode_handler(ZEND_ASSIGN_CONCAT, my_assign_concat);				//string connect assign,eg,$a.="xx"
 	zend_set_user_opcode_handler(ZEND_ADD_CHAR, my_add_char);									//add char to string,eg,$a="xx $b"

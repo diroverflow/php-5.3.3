@@ -62,7 +62,7 @@ step:
 	
 用法
 -----
-sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-i <POSTDATAFILE>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-l <logfile>] [-f <file>]
+sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-k <COOKIESTRING>] [-t <METHODSTRING>] [-s <SIMULATESTRING>] [-c <inifile>] [-l <logfile>] [-f <file>]
 
   -d               decode POST data		编码POST数据，以\xAA\xBB的形式输入，避免不可见字符
   
@@ -75,12 +75,16 @@ sapi/pvm/pvm [-g <GETSTRING>] [-p <POSTSTRING>] [-i <POSTDATAFILE>] [-k <COOKIES
   -k <cookies>     COOKIE data				COOKIE数据
 
   -t <method>      METHOD(GET\POST)		请求方法，GET或POST
+  
+  -s <simulate>    simulate GPC input	模拟任意输入
+	
+	-c <inifile>     php ini file				指定php.ini配置文件
 
   -l <logfile>     log to file				把监视结果输出到文件
 
   -f <file>        Parse <file>				要执行的主php脚本
 
-Release\pvm.exe -g c=d -p a=b -k e=f -t POST -f testscripts\11.php
+Release\pvm.exe -g c=d -p "a=b&x=y" -k e=f -t POST -f testscripts\11.php
 	
 显示出Warning: eval(): Eval code contains data that might be tainted in E:\PHP\php-5.3.3\testscripts\11.php on line 1
 	
